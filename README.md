@@ -88,9 +88,10 @@ make vet              # go vet + gofmt check
 make test             # go test ./...
 ```
 
-To produce a signed, downloadable release from your own fork, enable the template in
-[`examples/release/`](examples/release/). The per-OS download-and-verify guide is in
-[`docs/INSTALLER.md`](docs/INSTALLER.md#get-the-binary).
+To build the binaries in CI on every push/PR (artifact with the 5 targets + `SHA256SUMS`), enable
+the template in [`examples/build/`](examples/build/). To produce a signed, downloadable release
+from your own fork, enable the template in [`examples/release/`](examples/release/). The per-OS
+download-and-verify guide is in [`docs/INSTALLER.md`](docs/INSTALLER.md#get-the-binary).
 
 ## Usage
 

@@ -99,7 +99,8 @@ next build.
   (**govulncheck** pinned), and `yaml` (**yamllint** + **actionlint** + `goreleaser check`).
   Actions pinned by commit **SHA** (updates via Dependabot).
 - `examples/build/build.yml` — **template** (inactive) for build + cross-compile (`make dist`) +
-  `make checksums`, publishing the binaries as an artifact (enable it in your fork).
+  `make checksums`, publishing the binaries as an artifact (enable it in your fork — guide in
+  [`examples/build/README.md`](../../examples/build/README.md)).
 - `examples/release/release.yml` — **template** (inactive) for the signed release; this sample does not
   publish releases (enable it in your fork — see below).
 

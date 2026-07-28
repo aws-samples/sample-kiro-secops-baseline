@@ -12,6 +12,7 @@
 #
 # This sample does NOT publish releases: the signed release pipeline is a
 # separate template in examples/release/ (enable it in your fork).
+# Full step-by-step: examples/build/README.md
 # Actions pinned by commit SHA (supply chain, A08); updates via Dependabot.
 # =============================================================================
 name: build
