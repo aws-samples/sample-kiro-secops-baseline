@@ -1,0 +1,70 @@
+# GoReleaser — build/packaging/signing of the kiro-secops binary.
+# Docs: https://goreleaser.com  ·  validate with: goreleaser check
+version: 2
+
+project_name: kiro-secops
+
+before:
+  hooks:
+    - go mod tidy
+    - go vet ./...
+    - go test ./...
+
+builds:
+  - id: kiro-secops
+    main: ./cmd/kiro-secops
+    binary: kiro-secops
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    mod_timestamp: "{{ .CommitTimestamp }}" # reproducible build
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X kiro-secops/internal/app.version={{ .Version }} -X kiro-secops/internal/app.commit={{ .Commit }} -X kiro-secops/internal/app.date={{ .CommitDate }}
+
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# SBOM (CycloneDX/SPDX via syft) for each file — supply chain.
+sboms:
+  - id: archive
+    artifacts: archive
+
+# Keyless signing (cosign + GitHub Actions OIDC) of the checksums file,
+# which in turn covers the integrity of all artifacts.
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+release:
+  prerelease: auto
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

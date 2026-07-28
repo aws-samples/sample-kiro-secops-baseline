@@ -1,0 +1,199 @@
+# =============================================================================
+# ADMINISTRATION-scope template (kiro-secops) — org-wide, non-removable policy
+# =============================================================================
+# The Administration permission scope (enterprise plans) accepts ONLY
+# deny/ask, and resolution is by restrictiveness (deny > ask > allow): a
+# user/workspace `allow` can NEVER relax a rule placed there. This file is the
+# distributable deny/ask subset of the baseline (permissions.yaml minus its
+# allow rules) — the org-wide floor a developer cannot remove.
+#
+# INVARIANTS (enforced by payload_consistency_test.go in this repo):
+#   - only deny/ask effects (TestAdminProfileOnlyDenyAsk);
+#   - every baseline deny/ask is present with at least the same
+#     restrictiveness (TestAdminProfileCoversBaselineRestrictions).
+#
+# NOT installed by `kiro-secops install` (it is not a personal profile).
+# Deploy it through your enterprise tooling/MDM into the Administration
+# scope — rollout guide: docs/security/ENTERPRISE.md. For a stricter org-wide
+# posture, add the deltas from profiles/strict.yaml (publishing denied,
+# web_fetch denied, no broad package-manager use).
+#
+# web tools: prefer the Kiro console's org-wide web-tools switch (it removes
+# web_search/web_fetch entirely); this file additionally keeps web_fetch
+# under ask for defense in depth. There is no web_search rule here on
+# purpose: the baseline allows it, and this scope cannot carry `allow`.
+# =============================================================================
+
+rules:
+  # --- Secrets: the agent NEVER reads ------------------------------------
+  # Canonical secret set — same as the baseline (see permissions.yaml).
+  - capability: fs_read
+    effect: deny
+    match:
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/id_rsa*"
+      - "**/id_ed25519*"
+      - "**/id_ecdsa*"
+      - "**/credentials"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/*.tfstate"
+      - "**/*.tfstate.*"
+      - "**/.npmrc"
+      - "**/.pypirc"
+
+  # --- Secrets: the agent NEVER writes/removes ---------------------------
+  - capability: fs_write
+    effect: deny
+    match:
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/id_rsa*"
+      - "**/id_ed25519*"
+      - "**/id_ecdsa*"
+      - "**/credentials"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/*.tfstate"
+      - "**/*.tfstate.*"
+      - "**/.npmrc"
+      - "**/.pypirc"
+
+  # --- Self-protection: the agent NEVER rewrites its own guardrails ------
+  - capability: fs_write
+    effect: deny
+    match:
+      - "**/.kiro/settings/**"
+      - "**/.kiro/hooks/**"
+
+  # --- Shell: destructive / exfiltration commands forbidden --------------
+  - capability: shell
+    effect: deny
+    match:
+      # Destructive filesystem
+      - "rm -rf *"
+      - "rm -fr *"
+      - "mkfs*"
+      - "shred *"
+      - "find * -delete*"
+      - "find * -exec*"
+      # Privilege escalation
+      - "sudo *"
+      - "su *"
+      - "doas *"
+      # Permission tampering
+      - "chmod -R 777 *"
+      - "chmod 777 *"
+      - "chown -R *"
+      # Pipe-to-interpreter (arbitrary code execution)
+      - "* | sh"
+      - "* | bash"
+      - "* | zsh"
+      - "* | python*"
+      - "* | perl*"
+      - "* | ruby*"
+      - "* | node*"
+      - "sh -c *"
+      - "bash -c *"
+      - "eval *"
+      # Network exfiltration / remote execution
+      - "curl *"
+      - "wget *"
+      - "nc *"
+      - "ncat *"
+      - "netcat *"
+      - "ssh *"
+      - "scp *"
+      - "sftp *"
+      - "telnet *"
+      - "ftp *"
+      # Destructive git
+      - "git push --force*"
+      - "git push -f*"
+      - "git reset --hard*"
+      # Persistence / history evasion
+      - "crontab *"
+      - "at *"
+      - "history -c*"
+
+  # --- Shell: file-writes via shell that bypass the fs_write HARD layer ---
+  - capability: shell
+    effect: ask
+    match:
+      - "sed -i*"
+      - "tee *"
+      - "dd *"
+      - "truncate *"
+      - "* > *"
+      - "* >> *"
+      - "rsync *"
+      - "git config *"
+
+  # --- Shell: high impact requires confirmation via the native protocol --
+  - capability: shell
+    effect: ask
+    match:
+      - "terraform apply*"
+      - "terraform destroy*"
+      - "kubectl delete*"
+      - "helm delete*"
+      - "helm uninstall*"
+      - "helm rollback*"
+      - "docker push*"
+      - "docker system prune*"
+      - "docker rmi -f*"
+      - "npm publish*"
+      - "yarn publish*"
+      - "pnpm publish*"
+      - "git push*"
+      - "git reset --hard*"
+      - "git clean -f*"
+      - "aws s3 rm*"
+      - "aws s3 rb*"
+      - "aws ec2 terminate-instances*"
+      - "systemctl stop*"
+      - "systemctl disable*"
+
+  # --- High-impact writes require confirmation ---------------------------
+  - capability: fs_write
+    effect: ask
+    match:
+      # Container build files (incl. variants: Dockerfile.review, Containerfile)
+      - "**/Dockerfile*"
+      - "**/*.dockerfile"
+      - "**/Containerfile"
+      # IaC
+      - "**/*.tf"
+      - "**/*.tfvars"
+      - "**/*.hcl"
+      # CI/CD & orchestration
+      - ".github/workflows/**"
+      - "**/Jenkinsfile"
+      - "**/k8s/**"
+      - "**/docker-compose*.y*ml"
+      - "**/compose*.y*ml"
+      # Build / execution entrypoints (run arbitrary commands)
+      - "**/Makefile"
+      - "**/.pre-commit-config.yaml"
+      # Broad config catch-all
+      - "**/*.yaml"
+      - "**/*.yml"
+
+  # --- Network: require confirmation (avoids silent exfiltration) --------
+  - capability: web_fetch
+    effect: ask
+
+  # --- MCP: require confirmation for write tools -------------------------
+  - capability: mcp
+    effect: ask
+
+  # No allow rules here ON PURPOSE: the Administration scope only accepts
+  # deny/ask. Developer ergonomics (scanner/git allow-list, broad fs_read)
+  # stay in the PERSONAL baseline installed by `kiro-secops install`.

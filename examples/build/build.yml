@@ -1,0 +1,47 @@
+# =============================================================================
+# TEMPLATE (INACTIVE) — BUILD pipeline for the kiro-secops installable.
+#
+# GitHub only runs workflows in `.github/workflows/`, so this file, living in
+# examples/, is inert. Quality checks (tests, go vet, golangci-lint, YAML)
+# run in `.github/workflows/ci.yml`.
+#
+# To build/cross-compile the binaries IN YOUR FORK:
+#   1. Copy this file to `.github/workflows/build.yml` in your fork.
+#   2. Enable Actions; every push/PR then produces the 5 binaries and
+#      SHA256SUMS as the `kiro-secops-binaries` artifact.
+#
+# This sample does NOT publish releases: the signed release pipeline is a
+# separate template in examples/release/ (enable it in your fork).
+# Actions pinned by commit SHA (supply chain, A08); updates via Dependabot.
+# =============================================================================
+name: build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.25"
+          cache: false # stdlib+yaml.v3: no large go.sum to cache
+      - name: Build (host)
+        run: go build ./...
+      - name: Cross-compile (all targets)
+        run: make dist
+      - name: Checksums
+        run: make checksums
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kiro-secops-binaries
+          path: dist/*

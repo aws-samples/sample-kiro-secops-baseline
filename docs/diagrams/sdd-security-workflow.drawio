@@ -1,0 +1,70 @@
+<mxfile host="app.diagrams.net" agent="Kiro">
+  <diagram id="sdd-security-workflow" name="SDD security workflow">
+    <mxGraphModel dx="1434" dy="759" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="Security-hardened SDD workflow — spec phases and where security is injected" style="text;html=1;fontSize=18;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="1090" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="Steering with inclusion: always — ~/.kiro/steering/security-policies.md enters every interaction and is what demands the security sections below in all four phases" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="64" width="1092" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="4" value="1 · requirements.md" style="swimlane;startSize=32;html=1;whiteSpace=wrap;fontStyle=1;fontSize=12;fillColor=#F5F5F5;strokeColor=#6C8EBF;align=center;verticalAlign=middle;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="228" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="## Security Requirements&#xa;in EARS form:&#xa;WHEN … THE SYSTEM SHALL …&#xa;&#xa;• allowlist input validation&#xa;• authN before authZ&#xa;• secrets in a vault&#xa;• crypto in transit and at rest&#xa;• errors without leakage&#xa;• logging and auditing&#xa;• rate limiting&#xa;• abuse and misuse cases" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="4">
+          <mxGeometry x="12" y="44" width="204" height="246" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="steering always&#xa;+ hook PostFileCreate&#xa;matcher:&#xa;\.kiro/specs/.*/requirements\.md$&#xa;action: agent prompt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="4">
+          <mxGeometry x="12" y="302" width="204" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="2 · design.md" style="swimlane;startSize=32;html=1;whiteSpace=wrap;fontStyle=1;fontSize=12;fillColor=#F5F5F5;strokeColor=#6C8EBF;align=center;verticalAlign=middle;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="328" y="150" width="228" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="8" value="## Security Considerations /&#xa;Threat Model&#xa;&#xa;• trust boundaries&#xa;• STRIDE per component&#xa;• authN / authZ&#xa;• validation and encoding&#xa;• secrets and key management&#xa;• data classification + crypto&#xa;• logging and monitoring&#xa;• supply-chain risks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="7">
+          <mxGeometry x="12" y="44" width="204" height="246" as="geometry" />
+        </mxCell>
+        <mxCell id="9" value="steering always&#xa;+ hook PostFileCreate&#xa;matcher: \.kiro/specs/.*/design\.md$&#xa;+ skill kiro-secops-review →&#xa;references/threat-model-template.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="7">
+          <mxGeometry x="12" y="302" width="204" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="10" value="3 · tasks.md" style="swimlane;startSize=32;html=1;whiteSpace=wrap;fontStyle=1;fontSize=12;fillColor=#F5F5F5;strokeColor=#6C8EBF;align=center;verticalAlign=middle;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="616" y="150" width="228" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="11" value="Explicit security tasks&#xa;&#xa;• threat modeling&#xa;• SAST&#xa;• SCA / dependency review&#xa;• DAST&#xa;• security review of the diff&#xa;&#xa;Written as real tasks, so they are tracked and checked off like any other work item instead of living in someone's head." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="10">
+          <mxGeometry x="12" y="44" width="204" height="246" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="steering always only&#xa;&#xa;there is no native generator for security tasks — the wording comes from the steering policy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="10">
+          <mxGeometry x="12" y="302" width="204" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="4 · execution" style="swimlane;startSize=32;html=1;whiteSpace=wrap;fontStyle=1;fontSize=12;fillColor=#F5F5F5;strokeColor=#9673A6;align=center;verticalAlign=middle;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry x="904" y="150" width="228" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="Shipped in the payload&#xa;&#xa;PostTaskExec →&#xa;kiro-secops scan --advisory&#xa;non-blocking, timeout 300 s&#xa;&#xa;Stop → review gate: an agent&#xa;reviews the turn's changes&#xa;&#xa;PreToolUse guard stays armed&#xa;for the whole execution&#xa;&#xa;Suggested, NOT shipped&#xa;PreTaskExec → hold a task until&#xa;a threat model exists (exit 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="13">
+          <mxGeometry x="12" y="44" width="204" height="246" as="geometry" />
+        </mxCell>
+        <mxCell id="15" value="hooks in&#xa;.kiro/hooks/kiro-secops.json&#xa;&#xa;every command action pinned to the guard's absolute path" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=8;" vertex="1" parent="13">
+          <mxGeometry x="12" y="302" width="204" height="104" as="geometry" />
+        </mxCell>
+        <mxCell id="16" value="approval gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.12;exitDx=0;exitDy=0;entryX=0;entryY=0.12;entryDx=0;entryDy=0;" edge="1" parent="1" source="4" target="7">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-12" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="17" value="approval gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.12;exitDx=0;exitDy=0;entryX=0;entryY=0.12;entryDx=0;entryDy=0;" edge="1" parent="1" source="7" target="10">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-12" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="18" value="approval gate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.12;exitDx=0;exitDy=0;entryX=0;entryY=0.12;entryDx=0;entryDy=0;" edge="1" parent="1" source="10" target="13">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-12" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="19" value="What is NOT native — stated plainly to avoid false promises: Kiro has no native threat-model section, no native generator for SAST / SCA / DAST tasks and no native spec template. Everything above is composed from steering (inclusion: always) plus hooks. #[[file:…]] resolves inside steering but not inside a spec, which is why the STRIDE template is delivered through the kiro-secops-review skill instead of being referenced from design.md.&#xa;Two caveats worth validating in your own environment: PreTaskExec with exit 2 blocks in the CLI, but there is a known IDE ↔ CLI divergence; and hook payload field names (tool_input.*) vary per tool — which is exactly why guard accepts several key spellings and blocks anything it does not recognise.&#xa;The spec itself lives in .kiro/specs/&lt;feature&gt;/ and the approval gates between phases are native. Nothing here replaces them: the hooks only make sure the security sections exist before you approve a phase." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="600" width="1092" height="120" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

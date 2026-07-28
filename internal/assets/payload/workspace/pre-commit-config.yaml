@@ -1,0 +1,64 @@
+# =============================================================================
+# pre-commit — local scanners (shift-left). Mirrors the CI gates (security-scan.yml).
+# Install:   pip install pre-commit && pre-commit install
+# Run all:   pre-commit run --all-files
+# Update:    pre-commit autoupdate  (review version changes)
+# Do NOT rely on pre-commit alone: `--no-verify` bypasses it. Replicate it in CI and server-side.
+#
+# NOTE on Semgrep: the remote rulesets (p/ci, p/secrets) are resolved from the registry
+# at run time and are NOT pinnable by version via the CLI. For 100% reproducible
+# builds, vendor the rules (git submodule / local copy) and point --config
+# to the local path. The Semgrep version itself is pinned below.
+# =============================================================================
+repos:
+  # --- Secrets (critical, first) ---
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-json
+
+  # --- SAST ---
+  - repo: https://github.com/semgrep/pre-commit
+    rev: v1.166.0
+    hooks:
+      - id: semgrep
+        args: ["--config", "p/ci", "--config", "p/secrets", "--error", "--skip-unknown-extensions"]
+
+  # --- IaC (Terraform/CFN/K8s/Dockerfile) ---
+  - repo: https://github.com/bridgecrewio/checkov
+    rev: "3.2.0"
+    hooks:
+      - id: checkov
+        args: ["--quiet", "--compact"]
+
+  # --- SCA + IaC + secret (Trivy) — mirrors the CI blocking gate ---
+  # Local hook: requires trivy installed (standalone binary group in TOOLS.md).
+  # Same severity/scanners/exit-code as the sca-iac job in security-scan.yml.
+  - repo: local
+    hooks:
+      - id: trivy-fs
+        name: trivy fs (vuln/secret/misconfig HIGH,CRITICAL)
+        language: system
+        pass_filenames: false
+        entry: >-
+          trivy fs --quiet --scanners vuln,secret,misconfig
+          --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed .
+
+  # --- Optional: detect-secrets with baseline (good for legacy repos) ---
+  # Generate the baseline once:  detect-secrets scan > .secrets.baseline
+  # and uncomment:
+  # - repo: https://github.com/Yelp/detect-secrets
+  #   rev: v1.5.0
+  #   hooks:
+  #     - id: detect-secrets
+  #       args: ["--baseline", ".secrets.baseline"]

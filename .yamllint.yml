@@ -1,0 +1,12 @@
+# yamllint — focuses on syntax errors; relaxes style rules that add no value here
+# (long lines in commands, missing `---`, the `on:` key of workflows).
+extends: default
+
+rules:
+  line-length: disable
+  document-start: disable
+  comments-indentation: disable
+  truthy:
+    check-keys: false # allows the `on:` key of GitHub Actions workflows
+  comments:
+    min-spaces-from-content: 1

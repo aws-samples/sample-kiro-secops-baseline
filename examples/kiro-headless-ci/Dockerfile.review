@@ -1,0 +1,107 @@
+# syntax=docker/dockerfile:1
+#
+# REVIEW image (PR/pipeline) with the headless Kiro CLI.
+# Reuses the kiro-secops-reviewer agent (same review logic as the product).
+#
+# Build (context = repo ROOT, to compile the kiro-secops binary from source):
+#   docker build -f examples/kiro-headless-ci/Dockerfile.review -t kiro-secops-review:local .
+#
+# Usage (PR review):
+#   docker run --rm -e KIRO_API_KEY -e BASE_REF=origin/main \
+#     -v "$PWD:/workspace" kiro-secops-review:local review
+#
+# Best practices applied: multi-stage, digest-pinnable base, non-root user,
+# Kiro CLI installed from the official zip + install.sh (NOT 'curl | sh', which is
+# blocked by this project's own deny-list), auto-update disabled (reproducible).
+
+# --- Global arguments (pinnable at build; an ARG used in FROM must be global) ------
+# Base images from ECR Public (public.ecr.aws) — publicly accessible and recommended by AWS
+# (avoids Docker Hub rate limits). For builds that require an INTERNAL registry (AWS/BuilderHub
+# guidelines — 'non-ecr-docker-image' finding), override via --build-arg pointing to your
+# ECR (e.g., <account>.dkr.ecr.<region>.amazonaws.com/...) and/or pin by @sha256. glibc 2.34+ ok.
+ARG GO_IMAGE=public.ecr.aws/docker/library/golang:1.25-bookworm
+ARG UBUNTU_REF=public.ecr.aws/docker/library/ubuntu:24.04
+
+# --- Stage 1: compile the kiro-secops binary -------------------------------
+FROM ${GO_IMAGE} AS build
+# GOTOOLCHAIN=local: use only the image's toolchain (fail fast instead of downloading another).
+ENV GOTOOLCHAIN=local
+WORKDIR /src
+COPY . .
+# Hermetic/reproducible build: -mod=vendor (uses vendor/, no network/proxy),
+# -buildvcs=false (no .git, excluded in .dockerignore), -trimpath.
+RUN CGO_ENABLED=0 go build -trimpath -buildvcs=false -mod=vendor \
+    -ldflags '-s -w' -o /out/kiro-secops ./cmd/kiro-secops
+
+# --- Stage 2: final image ------------------------------------------------
+FROM ${UBUNTU_REF}
+
+LABEL org.opencontainers.image.title="kiro-secops-review" \
+    org.opencontainers.image.description="Headless Kiro CLI for PR/pipeline security review (kiro-secops-reviewer agent)." \
+    org.opencontainers.image.source="https://github.com/aws-samples/sample-kiro-secops-baseline" \
+    org.opencontainers.image.licenses="MIT-0"
+
+# pipefail in RUN with a pipe.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Minimal dependencies: git (diff at runtime), ca-certificates (TLS), curl+unzip (install the CLI).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    ca-certificates git curl unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user (kiro-secops install refuses to run as root: mustNotRoot()).
+ARG APP_UID=10001
+RUN useradd --create-home --uid "${APP_UID}" --shell /bin/bash kiro \
+    && mkdir -p /workspace \
+    && chown kiro:kiro /workspace
+
+# kiro-secops binary (from the build stage) and example artifacts.
+COPY --from=build /out/kiro-secops /usr/local/bin/kiro-secops
+COPY --chmod=0755 examples/kiro-headless-ci/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY examples/kiro-headless-ci/prompts /opt/kiro-secops/prompts
+
+ENV HOME=/home/kiro \
+    KIRO_HOME=/home/kiro/.kiro \
+    PATH=/home/kiro/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+USER kiro
+WORKDIR /home/kiro
+
+# Install the Kiro CLI from the official zip (per architecture) and the bundled install.sh.
+# Upstream only publishes /latest/ and does not publish a per-file checksum. For a reproducible build,
+# PIN with --build-arg KIRO_CLI_SHA256=<sha256> (it is verified when provided).
+ARG TARGETARCH
+ARG KIRO_CLI_URL_BASE="https://desktop-release.q.us-east-1.amazonaws.com/latest"
+ARG KIRO_CLI_SHA256=""
+RUN set -euo pipefail; \
+    case "${TARGETARCH:-amd64}" in \
+    amd64) arch=x86_64 ;; \
+    arm64) arch=aarch64 ;; \
+    *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    url="${KIRO_CLI_URL_BASE}/kirocli-${arch}-linux.zip"; \
+    echo ">> downloading ${url}"; \
+    curl --proto '=https' --tlsv1.2 -fsSL "${url}" -o /tmp/kirocli.zip; \
+    if [ -n "${KIRO_CLI_SHA256}" ]; then \
+    echo "${KIRO_CLI_SHA256}  /tmp/kirocli.zip" | sha256sum -c -; \
+    else \
+    echo ">> WARNING: KIRO_CLI_SHA256 not provided; sha256 of the downloaded artifact (pin it in your fork):"; \
+    sha256sum /tmp/kirocli.zip; \
+    fi; \
+    unzip -q /tmp/kirocli.zip -d /tmp/kirocli; \
+    /tmp/kirocli/kirocli/install.sh --no-confirm </dev/null \
+    || /tmp/kirocli/kirocli/install.sh </dev/null; \
+    rm -rf /tmp/kirocli.zip /tmp/kirocli; \
+    kiro-cli --version
+
+# Install the global config into ~/.kiro: kiro-secops-reviewer agent + skill + steering + permissions.
+# Disable auto-update for reproducible builds/runs.
+RUN set -euo pipefail; \
+    kiro-secops install; \
+    kiro-cli settings app.disableAutoupdates true || true; \
+    kiro-cli settings chat.showThinking false || true
+
+WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["review"]

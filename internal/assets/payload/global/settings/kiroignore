@@ -1,0 +1,33 @@
+# .kiroignore — files that Kiro CANNOT access (.gitignore style)
+# Complements (does not replace) the 'deny' in permissions.yaml. Reduces the surface:
+# even if a rule fails, the agent does not see secrets.
+
+# --- Secrets and credentials ---
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.tfstate
+*.tfstate.*
+**/credentials
+**/*.credentials
+.aws/credentials
+.npmrc
+.pypirc
+
+# --- Artifacts / dependencies (noise, not source code) ---
+node_modules/
+.terraform/
+.terraform.lock.hcl
+dist/
+build/
+coverage/
+*.log
+sbom*.json

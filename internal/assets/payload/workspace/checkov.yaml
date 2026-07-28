@@ -1,0 +1,20 @@
+# Checkov config — https://www.checkov.io
+# Local usage:  checkov -d .
+
+framework:
+  - terraform
+  - cloudformation
+  - kubernetes
+  - dockerfile
+  - github_actions
+  - helm
+
+quiet: true
+compact: true
+
+# Fails the build when it finds violations (do not use soft-fail in a blocking gate).
+soft-fail: false
+
+# Example: skip specific checks ALWAYS with a documented justification.
+# skip-check:
+#   - CKV_AWS_18   # justification: access log for bucket X managed outside this repo

@@ -1,0 +1,6 @@
+version: "2"
+
+# Standard golangci-lint set: errcheck, govet, ineffassign, staticcheck, unused.
+# (misspell is intentionally omitted to avoid false positives on technical/domain terms.)
+linters:
+  default: standard

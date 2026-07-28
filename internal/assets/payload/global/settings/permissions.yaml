@@ -1,0 +1,218 @@
+# =============================================================================
+# Kiro permissions TEMPLATE (access enforcement — HARD layer)
+# =============================================================================
+# WHERE TO INSTALL (the installer will do it; or copy manually — the agent CANNOT write here):
+#   mkdir -p ~/.kiro/settings
+#   cp payload/global/settings/permissions.yaml ~/.kiro/settings/permissions.yaml
+#
+# For an inviolable ORGANIZATION policy (the dev cannot remove it), replicate these rules
+# in the Administration scope (enterprise/MDM) — which only accepts deny/ask and is not
+# overridable by user/workspace allow rules.
+#
+# MODEL: each rule = capability + match/exclude (globs) + effect.
+# RESOLUTION by restrictiveness: deny > ask > allow (the more permissive NEVER
+# overrides the more restrictive, in any scope). No matching rule => ask.
+#
+# Capabilities: fs_read, fs_write, filesystem, shell, web_fetch, web_search,
+#   mcp (server/tool pattern), subagent, skill, power, diagnostics, context, all, builtin.
+# Filesystem globs: * ** {} [abc]. shell/web/mcp: only *.
+# Compound commands (; && || |) are split and evaluated individually.
+# =============================================================================
+
+rules:
+  # --- Secrets: the agent NEVER reads ------------------------------------
+  # Canonical secret set — mirrored in fs_write below, profiles/strict.yaml,
+  # settings/kiroignore, and the guard binary (denyWriteRE). Kept in sync by
+  # payload_consistency_test.go.
+  - capability: fs_read
+    effect: deny
+    match:
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/id_rsa*"
+      - "**/id_ed25519*"
+      - "**/id_ecdsa*"
+      - "**/credentials"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/*.tfstate"
+      - "**/*.tfstate.*"
+      - "**/.npmrc"
+      - "**/.pypirc"
+
+  # --- Secrets: the agent NEVER writes/removes ---------------------------
+  - capability: fs_write
+    effect: deny
+    match:
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/id_rsa*"
+      - "**/id_ed25519*"
+      - "**/id_ecdsa*"
+      - "**/credentials"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/*.tfstate"
+      - "**/*.tfstate.*"
+      - "**/.npmrc"
+      - "**/.pypirc"
+
+  # --- Self-protection: the agent NEVER rewrites its own guardrails ------
+  - capability: fs_write
+    effect: deny
+    match:
+      - "**/.kiro/settings/**"
+      - "**/.kiro/hooks/**"
+
+  # --- Shell: destructive / exfiltration commands forbidden --------------
+  - capability: shell
+    effect: deny
+    match:
+      # Destructive filesystem
+      - "rm -rf *"
+      - "rm -fr *"
+      - "mkfs*"
+      - "shred *"
+      - "find * -delete*"
+      - "find * -exec*"
+      # Privilege escalation
+      - "sudo *"
+      - "su *"
+      - "doas *"
+      # Permission tampering
+      - "chmod -R 777 *"
+      - "chmod 777 *"
+      - "chown -R *"
+      # Pipe-to-interpreter (arbitrary code execution)
+      - "* | sh"
+      - "* | bash"
+      - "* | zsh"
+      - "* | python*"
+      - "* | perl*"
+      - "* | ruby*"
+      - "* | node*"
+      - "sh -c *"
+      - "bash -c *"
+      - "eval *"
+      # Network exfiltration / remote execution
+      - "curl *"
+      - "wget *"
+      - "nc *"
+      - "ncat *"
+      - "netcat *"
+      - "ssh *"
+      - "scp *"
+      - "sftp *"
+      - "telnet *"
+      - "ftp *"
+      # Destructive git
+      - "git push --force*"
+      - "git push -f*"
+      - "git reset --hard*"
+      # Persistence / history evasion
+      - "crontab *"
+      - "at *"
+      - "history -c*"
+
+  # --- Shell: file-writes via shell that bypass the fs_write HARD layer ---
+  - capability: shell
+    effect: ask
+    match:
+      - "sed -i*"
+      - "tee *"
+      - "dd *"
+      - "truncate *"
+      - "* > *"
+      - "* >> *"
+      - "rsync *"
+      - "git config *"
+
+  # --- Shell: high impact requires confirmation via the native protocol --
+  - capability: shell
+    effect: ask
+    match:
+      - "terraform apply*"
+      - "terraform destroy*"
+      - "kubectl delete*"
+      - "helm delete*"
+      - "helm uninstall*"
+      - "helm rollback*"
+      - "docker push*"
+      - "docker system prune*"
+      - "docker rmi -f*"
+      - "npm publish*"
+      - "yarn publish*"
+      - "pnpm publish*"
+      - "git push*"
+      - "git reset --hard*"
+      - "git clean -f*"
+      - "aws s3 rm*"
+      - "aws s3 rb*"
+      - "aws ec2 terminate-instances*"
+      - "systemctl stop*"
+      - "systemctl disable*"
+
+  # --- High-impact writes require confirmation ---------------------------
+  - capability: fs_write
+    effect: ask
+    match:
+      # Container build files (incl. variants: Dockerfile.review, Containerfile)
+      - "**/Dockerfile*"
+      - "**/*.dockerfile"
+      - "**/Containerfile"
+      # IaC
+      - "**/*.tf"
+      - "**/*.tfvars"
+      - "**/*.hcl"
+      # CI/CD & orchestration
+      - ".github/workflows/**"
+      - "**/Jenkinsfile"
+      - "**/k8s/**"
+      - "**/docker-compose*.y*ml"
+      - "**/compose*.y*ml"
+      # Build / execution entrypoints (run arbitrary commands)
+      - "**/Makefile"
+      - "**/.pre-commit-config.yaml"
+      # Broad config catch-all
+      - "**/*.yaml"
+      - "**/*.yml"
+
+  # --- Network: require confirmation (avoids silent exfiltration) --------
+  - capability: web_fetch
+    effect: ask
+  - capability: web_search
+    effect: allow
+
+  # --- MCP: require confirmation for write tools -------------------------
+  - capability: mcp
+    effect: ask
+
+  # --- Allowed baseline (with sensitive exceptions) ----------------------
+  - capability: shell
+    effect: allow
+    match:
+      - "git *"
+      - "npm *"
+      - "npx *"
+      - "pnpm *"
+      - "yarn *"
+      - "trivy *"
+      - "semgrep *"
+      - "gitleaks *"
+      - "checkov *"
+      - "jq *"
+    exclude:
+      - "npm publish*"
+      - "git push*"
+
+  - capability: fs_read
+    effect: allow
+
+  # fs_write has no broad allow on purpose: outside the "ask" paths above,
+  # it falls into the default (ask), ensuring review of unexpected writes.

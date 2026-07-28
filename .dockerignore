@@ -1,0 +1,16 @@
+# The build context for the images in examples/kiro-headless-ci/ is the repo ROOT
+# (to compile the kiro-secops binary from source). Keep the context lean.
+.git
+.github
+dist/
+*.out
+/kiro-secops
+/kiro-secops.exe
+
+# Never send local secrets to the build context
+**/.env
+**/.env.*
+!**/.env.example
+
+# Docs and examples are not needed to compile the binary
+docs/

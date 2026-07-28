@@ -1,0 +1,11 @@
+# Deterministic line endings across platforms.
+#
+# The installer embeds payload files verbatim via //go:embed. A Windows checkout
+# with core.autocrlf=true (the GitHub runner default) would rewrite text files to
+# CRLF, which (a) breaks byte-exact payload assertions in tests and (b) corrupts
+# the DEPLOYED POSIX shell scripts (guard-*.sh, *-scan.sh) with a trailing ^M
+# ("bad interpreter" at runtime). Force LF in the working tree on every OS.
+* text=auto eol=lf
+
+# Binary assets: no EOL conversion, no textual diff.
+*.png binary

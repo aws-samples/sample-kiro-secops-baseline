@@ -1,0 +1,54 @@
+# GitLab CI example: security with the headless Kiro CLI in Docker.
+# Copy/adapt it into your .gitlab-ci.yml. Requires Docker (dind or the runner's socket).
+# KIRO_API_KEY: define it as a masked and protected CI/CD variable (Settings > CI/CD > Variables).
+# Runner images come from ECR Public (public.ecr.aws) — swap for an internal ECR if required.
+stages:
+  - security
+
+variables:
+  KIRO_LOG_NO_COLOR: "1"
+
+# Advisory: review the MR diff. allow_failure does not block the merge (the real gate is the scanner).
+ai-review:
+  stage: security
+  image: public.ecr.aws/docker/library/docker:27
+  services:
+    - public.ecr.aws/docker/library/docker:27-dind
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  allow_failure: true
+  script:
+    - docker build -f examples/kiro-headless-ci/Dockerfile.review -t kiro-secops-review:ci .
+    - >
+      docker run --rm
+      -e KIRO_API_KEY
+      -e "BASE_REF=origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"
+      -e KIRO_LOG_NO_COLOR
+      -v "$PWD:/workspace"
+      kiro-secops-review:ci review
+
+# Advisory: DAST = BYO scanner (you generate the report) + AI triage. when: manual.
+dast:
+  stage: security
+  image: public.ecr.aws/docker/library/docker:27
+  services:
+    - public.ecr.aws/docker/library/docker:27-dind
+  when: manual
+  allow_failure: true
+  script:
+    - docker build -f examples/kiro-headless-ci/Dockerfile.review -t kiro-secops-review:ci .
+    # Bring up the target and run YOUR DAST scanner (see README, "Configure DAST") generating dast-report.json.
+    # Nuclei (pinned binary + checksum, no external image) — recommended for ECR compliance:
+    #   nuclei -target "$TARGET_URL" -severity medium,high,critical -json-export dast-report.json
+    # OWASP ZAP: use an image MIRRORED in your ECR (it does not exist in ECR Public).
+    # placeholder for the example (replace with the real report generation from your scanner):
+    - test -f dast-report.json || touch dast-report.json
+    - >
+      docker run --rm -i
+      -e KIRO_API_KEY
+      -e KIRO_LOG_NO_COLOR
+      kiro-secops-review:ci dast-triage < dast-report.json
+  artifacts:
+    when: always
+    paths:
+      - dast-report.json

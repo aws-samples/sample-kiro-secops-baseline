@@ -1,0 +1,83 @@
+# =============================================================================
+# EXAMPLE of a security gate in CI (GitHub Actions). Adapt it to your CI.
+# Mirrors the pre-commit scanners, but in a BLOCKING way on the PR.
+# Actions pinned by commit SHA (supply chain, A08). Maintain them via Dependabot
+# and re-validate the SHA when updating the version in the comment.
+# =============================================================================
+name: security-scan
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+# Principle of least privilege for the workflow token.
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0            # full history to scan commits
+          persist-credentials: false
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: pip install "semgrep==1.166.0"
+      - name: Semgrep (OWASP Top 10 + secrets)
+        run: semgrep scan --config p/owasp-top-ten --config p/secrets --error
+
+  sca-iac:
+    name: SCA + IaC (Trivy + Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Trivy (vuln/secret/misconfig)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+      - name: Checkov (IaC)
+        uses: bridgecrewio/checkov-action@7b972723c44fb3d256283fac96fae5d7c1894bb7 # v12
+        with:
+          quiet: true
+          soft_fail: false
+
+  sbom:
+    name: SBOM (Trivy / SPDX)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          format: spdx-json
+          output: sbom.spdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom
+          path: sbom.spdx.json

@@ -1,0 +1,212 @@
+# =============================================================================
+# STRICT profile of permissions.yaml (kiro-secops) — install with:
+#   kiro-secops install --profile strict
+#
+# INVARIANT: strict is a SUPERSET of the baseline denies — every deny/ask in
+# permissions.yaml exists here too (enforced by payload_consistency_test.go).
+# On top of the baseline it hardens: publishing denied (not just ask), network
+# denied by default (no exfiltration), and package managers lose their broad
+# allow (they fall back to ask). Use it when you want a more closed floor.
+#
+# MODEL: each rule = capability + match/exclude (globs) + effect.
+# RESOLUTION by restrictiveness: deny > ask > allow. No matching rule => ask.
+# The installer's merge inserts these rules as MANAGED items (marked);
+# your rules outside the managed block are preserved.
+# =============================================================================
+
+rules:
+  # --- Secrets: the agent NEVER reads ------------------------------------
+  # Canonical secret set — same as the baseline (see permissions.yaml).
+  - capability: fs_read
+    effect: deny
+    match:
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/id_rsa*"
+      - "**/id_ed25519*"
+      - "**/id_ecdsa*"
+      - "**/credentials"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/*.tfstate"
+      - "**/*.tfstate.*"
+      - "**/.npmrc"
+      - "**/.pypirc"
+
+  # --- Secrets: the agent NEVER writes/removes ---------------------------
+  - capability: fs_write
+    effect: deny
+    match:
+      - "**/.env"
+      - "**/.env.*"
+      - "**/secrets/**"
+      - "**/*.pem"
+      - "**/*.key"
+      - "**/id_rsa*"
+      - "**/id_ed25519*"
+      - "**/id_ecdsa*"
+      - "**/credentials"
+      - "**/*.p12"
+      - "**/*.pfx"
+      - "**/*.tfstate"
+      - "**/*.tfstate.*"
+      - "**/.npmrc"
+      - "**/.pypirc"
+
+  # --- Self-protection: the agent NEVER rewrites its own guardrails ------
+  - capability: fs_write
+    effect: deny
+    match:
+      - "**/.kiro/settings/**"
+      - "**/.kiro/hooks/**"
+
+  # --- Shell: destructive / exfiltration commands forbidden --------------
+  # Baseline deny list + strict-only additions (publishing).
+  - capability: shell
+    effect: deny
+    match:
+      # Destructive filesystem
+      - "rm -rf *"
+      - "rm -fr *"
+      - "mkfs*"
+      - "shred *"
+      - "find * -delete*"
+      - "find * -exec*"
+      # Privilege escalation
+      - "sudo *"
+      - "su *"
+      - "doas *"
+      # Permission tampering
+      - "chmod -R 777 *"
+      - "chmod 777 *"
+      - "chown -R *"
+      # Pipe-to-interpreter (arbitrary code execution)
+      - "* | sh"
+      - "* | bash"
+      - "* | zsh"
+      - "* | python*"
+      - "* | perl*"
+      - "* | ruby*"
+      - "* | node*"
+      - "sh -c *"
+      - "bash -c *"
+      - "eval *"
+      # Network exfiltration / remote execution
+      - "curl *"
+      - "wget *"
+      - "nc *"
+      - "ncat *"
+      - "netcat *"
+      - "ssh *"
+      - "scp *"
+      - "sftp *"
+      - "telnet *"
+      - "ftp *"
+      # Destructive git
+      - "git push --force*"
+      - "git push -f*"
+      - "git reset --hard*"
+      # Persistence / history evasion
+      - "crontab *"
+      - "at *"
+      - "history -c*"
+      # strict: publishing is denied outright (baseline only asks)
+      - "npm publish*"
+      - "yarn publish*"
+      - "pnpm publish*"
+
+  # --- Shell: file-writes via shell that bypass the fs_write HARD layer ---
+  - capability: shell
+    effect: ask
+    match:
+      - "sed -i*"
+      - "tee *"
+      - "dd *"
+      - "truncate *"
+      - "* > *"
+      - "* >> *"
+      - "rsync *"
+      - "git config *"
+
+  # --- Shell: high impact requires confirmation --------------------------
+  - capability: shell
+    effect: ask
+    match:
+      - "terraform apply*"
+      - "terraform destroy*"
+      - "kubectl delete*"
+      - "helm delete*"
+      - "helm uninstall*"
+      - "helm rollback*"
+      - "docker push*"
+      - "docker system prune*"
+      - "docker rmi -f*"
+      - "git push*"
+      - "git clean -f*"
+      - "aws s3 rm*"
+      - "aws s3 rb*"
+      - "aws ec2 terminate-instances*"
+      - "systemctl stop*"
+      - "systemctl disable*"
+      # strict: package managers have no broad allow — they fall into the default (ask)
+      - "npm *"
+      - "npx *"
+      - "pnpm *"
+      - "yarn *"
+
+  # --- High-impact writes require confirmation ---------------------------
+  - capability: fs_write
+    effect: ask
+    match:
+      # Container build files (incl. variants: Dockerfile.review, Containerfile)
+      - "**/Dockerfile*"
+      - "**/*.dockerfile"
+      - "**/Containerfile"
+      # IaC
+      - "**/*.tf"
+      - "**/*.tfvars"
+      - "**/*.hcl"
+      # CI/CD & orchestration
+      - ".github/workflows/**"
+      - "**/Jenkinsfile"
+      - "**/k8s/**"
+      - "**/docker-compose*.y*ml"
+      - "**/compose*.y*ml"
+      # Build / execution entrypoints (run arbitrary commands)
+      - "**/Makefile"
+      - "**/.pre-commit-config.yaml"
+      # Broad config catch-all
+      - "**/*.yaml"
+      - "**/*.yml"
+
+  # --- Network: denied by default (strict) -------------------------------
+  - capability: web_fetch
+    effect: deny
+  - capability: web_search
+    effect: ask
+
+  # --- MCP: require confirmation -----------------------------------------
+  - capability: mcp
+    effect: ask
+
+  # --- Allowed baseline (minimal, no package managers) -------------------
+  - capability: shell
+    effect: allow
+    match:
+      - "git *"
+      - "trivy *"
+      - "semgrep *"
+      - "gitleaks *"
+      - "checkov *"
+      - "jq *"
+    exclude:
+      - "git push*"
+
+  - capability: fs_read
+    effect: allow
+
+  # fs_write has no broad allow: outside the "ask"/"deny" paths above, it falls into the
+  # default (ask), ensuring review of unexpected writes.

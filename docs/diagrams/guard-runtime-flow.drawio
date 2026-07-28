@@ -1,0 +1,111 @@
+<mxfile host="app.diagrams.net" agent="Kiro">
+  <diagram id="guard-runtime-flow" name="Guard runtime decision">
+    <mxGraphModel dx="1434" dy="759" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="900" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2" value="kiro-secops guard — runtime decision path (fail-closed)" style="text;html=1;fontSize=18;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="1090" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="PreToolUse hook → kiro-secops guard&#xa;shell matcher: execute_bash | shell&#xa;write matcher: fs_write | fs_append | str_replace | write | delete_file | remove" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="320" y="62" width="340" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="4" value="cmdGuard&#xa;io.ReadAll(io.LimitReader(os.Stdin, 1 MiB + 1))" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="320" y="140" width="340" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="5" value="payload unreadable or &gt; 1 MiB?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="210" width="300" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="6" value="unknown tool_input schema?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="298" width="300" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="7" value="guardEval(command, path)&#xa;whitespace normalized · splitSegments() respects quotes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="320" y="386" width="340" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="8" value="path matches denyWriteRE?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="460" width="300" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="9" value="command matches blockRE?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="548" width="300" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="10" value="dangerousSegment in any segment?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="636" width="300" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="11" value="ALLOW — exit 0&#xa;the hook does not block; permissions.yaml still decides" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;fontStyle=1;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="320" y="724" width="340" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="12" value="BLOCK — exit 2&#xa;&#xa;PreToolUse block contract: the tool call is refused and stderr goes back to the model.&#xa;&#xa;stderr messages&#xa;• invalid payload or above the limit — BLOCKED.&#xa;• unknown tool_input schema — BLOCKED.&#xa;• write BLOCKED to a sensitive/secret file. Use a secret manager.&#xa;• command BLOCKED by security policy. Rewrite it or request human review.&#xa;&#xa;FAIL-CLOSED&#xa;An unreadable payload, an oversized payload or an unrecognised schema all block. A change in the hook protocol can never silently disable the control.&#xa;&#xa;BINARY BY DESIGN&#xa;guard never writes a permissionDecision to stdout. In Kiro CLI v3 the stdout of a PreToolUse hook may be ignored, so relying on it would fail open. Every confirmation (effect: ask) is enforced natively by permissions.yaml." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;spacingRight=12;" vertex="1" parent="1">
+          <mxGeometry x="760" y="210" width="360" height="490" as="geometry" />
+        </mxCell>
+        <mxCell id="13" value="stdin contract&#xa;&#xa;• maxGuardPayload = 1 &lt;&lt; 20 (1 MiB)&#xa;• envelope key: tool_input | toolInput | input&#xa;• command: command | cmd&#xa;• path: path | file_path | targetFile | target_file&#xa;• neither command nor path present ⇒ invalid" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="210" width="250" height="152" as="geometry" />
+        </mxCell>
+        <mxCell id="14" value="denyWriteRE — write targets&#xa;.env · .env.* · secrets/ · *.pem · *.key&#xa;id_rsa · id_ed25519 · id_ecdsa · credentials&#xa;*.p12 · *.pfx · *.tfstate · .npmrc · .pypirc&#xa;also applied to shell redirection targets&#xa;&#xa;blockRE — tokenization-independent&#xa;fork bomb · pipe into a shell&#xa;base64 / xxd / openssl piped into a shell&#xa;process substitution · eval of remote content&#xa;/dev/tcp reverse shell · nc -e&#xa;mkfs · dd of=/dev/sd* · redirect to /dev/sd*&#xa;shred / wipefs · overwrite of shell history&#xa;&#xa;dangerousSegment — structural analyzer&#xa;unwraps sudo · doas · env · nice · time · nohup&#xa;rm -r over / ~ . * or a critical root&#xa;rm --no-preserve-root&#xa;find / -delete or -exec rm&#xa;chmod / chown / chgrp -R over a dangerous target&#xa;resilient to flag order, quoting and --" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="460" width="250" height="318" as="geometry" />
+        </mxCell>
+        <mxCell id="15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="3" target="4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="4" target="5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="17" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="5" target="6">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="14" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="18" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="6" target="7">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="14" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="7" target="8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="20" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="8" target="9">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="14" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="21" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#545B64;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="9" target="10">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="14" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="22" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#82B366;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="10" target="11">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="14" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="23" value="yes · invalid or oversized" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.065;entryDx=0;entryDy=0;" edge="1" parent="1" source="5" target="12">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-10" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="24" value="yes · unknown schema" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.245;entryDx=0;entryDy=0;" edge="1" parent="1" source="6" target="12">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-10" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="25" value="yes · secret path" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.576;entryDx=0;entryDy=0;" edge="1" parent="1" source="8" target="12">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-10" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="26" value="yes · dangerous command" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.755;entryDx=0;entryDy=0;" edge="1" parent="1" source="9" target="12">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-10" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="27" value="yes · destructive" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=20;html=1;endArrow=block;endFill=1;strokeColor=#B85450;strokeWidth=2;fontSize=10;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.935;entryDx=0;entryDy=0;" edge="1" parent="1" source="10" target="12">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" x="0" y="-10" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="28" value="The deny-list is not a sandbox: it complements permissions.yaml, it does not replace it, and a determined agent can rephrase a command around it. Confirmations are never decided here — permissions.yaml resolves them natively, where deny &gt; ask &gt; allow and no matching rule means ask. Because guard is a native binary it behaves identically on macOS, Linux and Windows without depending on a shell being available. 'kiro-secops verify' replays 19 deterministic block/allow cases through guardEval as a self-test, and 'verify --project .' checks that the absolute path pinned inside each hook still resolves — a hook that cannot start exits 127, which Kiro treats as a silent non-blocking failure." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;dashed=1;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;spacingRight=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="804" width="1080" height="76" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

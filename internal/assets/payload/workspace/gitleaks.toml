@@ -1,0 +1,27 @@
+# Gitleaks config — https://github.com/gitleaks/gitleaks
+title = "kiro-secops baseline"
+
+[extend]
+# Inherits gitleaks' default rule set (recommended).
+useDefault = true
+
+# Example custom rule for internal organization tokens.
+# Adjust the id/description/regex to your real secret pattern.
+[[rules]]
+id = "org-internal-token"
+description = "Internal organization token (example — adjust the regex)"
+regex = '''org_(prod|stg|dev)_[0-9a-zA-Z]{32}'''
+
+[allowlist]
+# MINIMAL and deliberate allowlist: each entry is a surface where a real secret
+# would go undetected. Keep the smallest possible set.
+#   - testdata/     : test fixtures (fake secrets should live here, not scattered)
+#   - .env.example  : template WITHOUT real values
+# Do NOT add docs/ nor "all *_test.*": a secret leaked in those places must
+# be detected. If a test needs a fake credential, put it in testdata/ or
+# add a narrow, justified per-regex allowlist.
+description = "Fixtures and templates without real values (kept minimal on purpose)"
+paths = [
+  '''(^|/)testdata/''',
+  '''(^|/)\.env\.example$''',
+]

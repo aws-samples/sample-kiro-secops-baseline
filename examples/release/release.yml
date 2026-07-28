@@ -1,0 +1,60 @@
+# =============================================================================
+# TEMPLATE (INACTIVE) — RELEASE pipeline for the kiro-secops installable.
+#
+# This sample does NOT publish releases. GitHub only runs workflows in
+# `.github/workflows/`, so this file, living in examples/, is inert.
+#
+# To build the signed installable IN YOUR FORK:
+#   1. Copy this file to `.github/workflows/release.yml` in your fork.
+#   2. Enable Actions and confirm the permissions below (contents/id-token/attestations).
+#   3. Publish a tag:  git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# The cosign signature (keyless/OIDC) and SLSA provenance are issued under YOUR
+# repository's IDENTITY automatically — there is nothing identity-related
+# hardcoded here. Full step-by-step: examples/release/README.md
+# Actions pinned by commit SHA (supply chain, A08); updates via Dependabot.
+# =============================================================================
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write     # create the GitHub Release
+  id-token: write     # cosign keyless (OIDC) + attestations
+  attestations: write # SLSA provenance (actions/attest-build-provenance)
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # full history for changelog and version
+          persist-credentials: false # GoReleaser uses GITHUB_TOKEN via env, not a persisted credential
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.25"
+          cache: false # stdlib+yaml.v3 project: no large go.sum to cache
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # SLSA provenance: REQUIRED when supported (public or organization
+      # repository) — the step fails the release if the attestation cannot be issued.
+      # It is SKIPPED in a user's PRIVATE repository, where the attestation API does not exist
+      # (avoids failing the release due to a platform limitation). Make the repo public
+      # to obtain verifiable provenance.
+      - name: SLSA provenance of the artifacts
+        if: ${{ github.event.repository.visibility != 'private' }}
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt

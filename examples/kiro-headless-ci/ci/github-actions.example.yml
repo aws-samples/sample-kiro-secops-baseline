@@ -1,0 +1,88 @@
+# Example workflow: security with the headless Kiro CLI in Docker.
+# This is NOT an active workflow in this repo (it lives in examples/); copy it to .github/workflows/ in YOUR project.
+#
+# Layers (see docs/PIPELINES.md):
+#   - HARD gate (deterministic): `kiro-secops scan .` must block the merge (add your own job).
+#   - Advisory (AI): the jobs below run via `docker run` (respecting the image's non-root user).
+# Actions pinned by commit SHA (supply chain, A08) — the same pins as this repo's ci.yml.
+name: kiro-headless-security
+
+on:
+  pull_request:
+
+permissions:
+  contents: read  # minimum: the AI review is read-only
+
+jobs:
+  ai-review:
+    name: AI security review (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0  # required for the BASE_REF...HEAD diff
+          persist-credentials: false
+      - name: Build the review image
+        run: docker build -f examples/kiro-headless-ci/Dockerfile.review -t kiro-secops-review:ci .
+      - name: Review the diff (does not block the merge)
+        continue-on-error: true  # advisory: the real gate is the deterministic scanner
+        env:
+          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+        run: |
+          docker run --rm \
+            -e KIRO_API_KEY \
+            -e "BASE_REF=origin/${{ github.base_ref }}" \
+            -e KIRO_LOG_NO_COLOR=1 \
+            -v "$PWD:/workspace" \
+            kiro-secops-review:ci review | tee review.txt
+      - name: Attach to the job summary
+        if: always()
+        run: |
+          {
+            echo "## Security review (AI) — advisory"
+            echo '```'
+            cat review.txt 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  dast:
+    name: DAST (BYO scanner) + AI triage (advisory)
+    runs-on: ubuntu-latest
+    # DAST needs a RUNNING, authorized target. Run it only when the PR has the 'dast' label.
+    if: contains(github.event.pull_request.labels.*.name, 'dast')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the review image (performs the triage)
+        run: docker build -f examples/kiro-headless-ci/Dockerfile.review -t kiro-secops-review:ci .
+      - name: Bring up the target and run the DAST scanner (BYO)
+        env:
+          TARGET_URL: ${{ vars.TARGET_URL }}
+        run: |
+          # 1) Bring up YOUR app (docker compose up -d, etc.) and expose an accessible URL.
+          # 2) Run your chosen scanner (see examples/kiro-headless-ci/README.md, "Configure DAST"):
+          #    - Nuclei (pinned binary + checksum, no external image) — recommended for ECR compliance;
+          #    - OWASP ZAP from an image MIRRORED in your ECR (it does not exist in ECR Public).
+          #    Generate a JSON report at dast-report.json. E.g. (Nuclei):
+          #    nuclei -target "${TARGET_URL:-http://localhost:8080}" -severity medium,high,critical -json-export dast-report.json
+          echo "TODO: bring up the target and generate dast-report.json with your scanner"
+          : > dast-report.json   # placeholder so the example does not break
+      - name: AI triage of the report (does not block the merge)
+        continue-on-error: true
+        env:
+          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+        run: |
+          docker run --rm -i \
+            -e KIRO_API_KEY -e KIRO_LOG_NO_COLOR=1 \
+            kiro-secops-review:ci dast-triage < dast-report.json | tee triage.txt
+      - name: Upload the report + triage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: dast-reports
+          path: |
+            dast-report.json
+            triage.txt

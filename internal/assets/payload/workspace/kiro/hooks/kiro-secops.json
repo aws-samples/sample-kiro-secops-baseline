@@ -1,0 +1,63 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "kiro-secops-guard-shell",
+      "description": "Blocks categorically dangerous commands; confirmations live in permissions.yaml.",
+      "trigger": "PreToolUse",
+      "matcher": "(^|\\.)(execute_bash|shell)$",
+      "action": { "type": "command", "command": "kiro-secops guard" },
+      "timeout": 10,
+      "enabled": true
+    },
+    {
+      "name": "kiro-secops-guard-write",
+      "description": "Blocks write, append, and removal on secret files.",
+      "trigger": "PreToolUse",
+      "matcher": "(^|\\.)(fs_write|fs_append|str_replace|write|delete_file|remove)$",
+      "action": { "type": "command", "command": "kiro-secops guard" },
+      "timeout": 10,
+      "enabled": true
+    },
+    {
+      "name": "kiro-secops-review-gate",
+      "description": "Security review of the changes at the end of the turn.",
+      "trigger": "Stop",
+      "action": {
+        "type": "agent",
+        "prompt": "Review the changes in this session: exposed secrets, injection (SQL/command/XSS), missing/incorrect access control, weak cryptography, and vulnerable dependencies. For each finding: severity, file:line, CWE/OWASP, and fix. If nothing is found, confirm the review."
+      },
+      "enabled": true
+    },
+    {
+      "name": "kiro-secops-scan-postexec",
+      "description": "Advisory (non-blocking) security scan at the end of each task, via the cross-platform binary.",
+      "trigger": "PostTaskExec",
+      "action": { "type": "command", "command": "kiro-secops scan --advisory" },
+      "timeout": 300,
+      "enabled": true
+    },
+    {
+      "name": "kiro-secops-sdd-requirements",
+      "description": "Ensures a Security Requirements (EARS) section in the specs' requirements.md.",
+      "trigger": "PostFileCreate",
+      "matcher": "\\.kiro/specs/.*/requirements\\.md$",
+      "action": {
+        "type": "agent",
+        "prompt": "If '## Security Requirements' is missing, add it in EARS (WHEN ... THE SYSTEM SHALL ...): allowlist input validation, authN before authZ, secrets in a vault, crypto in transit/at rest, errors without leakage, logging/auditing, rate limiting, and abuse cases."
+      },
+      "enabled": true
+    },
+    {
+      "name": "kiro-secops-sdd-threatmodel",
+      "description": "Ensures a Threat Model (STRIDE) section in the specs' design.md.",
+      "trigger": "PostFileCreate",
+      "matcher": "\\.kiro/specs/.*/design\\.md$",
+      "action": {
+        "type": "agent",
+        "prompt": "If '## Security Considerations / Threat Model' is missing, add: trust boundaries, STRIDE per component, authN/authZ, validation/encoding, secrets and keys, data classification + crypto, logging/monitoring, and supply chain risks."
+      },
+      "enabled": true
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# Trivy config — https://trivy.dev
+# Local usage:  trivy fs .        (uses this file automatically in the cwd)
+#               trivy config .    (only IaC/misconfig)
+# tfsec was consolidated into Trivy; use `trivy config` for IaC in new projects.
+
+# Fails the command (exit 1) when there are findings in the severities below.
+exit-code: 1
+
+severity:
+  - HIGH
+  - CRITICAL
+
+scan:
+  scanners:
+    - vuln       # vulnerable dependencies (SCA)
+    - secret     # hardcoded secrets
+    - misconfig  # IaC/Dockerfile/K8s
+
+vulnerability:
+  # Does not fail for CVEs still without an available fix (reduces noise).
+  ignore-unfixed: true
+
+misconfiguration:
+  include-non-failures: false

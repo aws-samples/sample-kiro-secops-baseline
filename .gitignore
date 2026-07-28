@@ -1,0 +1,23 @@
+# Installer build artifacts (do not version)
+/kiro-secops
+/kiro-secops.exe
+/kiro-secops.zip
+/dist/
+
+# Backups created by the installer
+*.bak.*
+
+# Local demo/recording material (not part of the product)
+/demo/
+
+# Local secrets — in CI use your provider's secrets, not .env files
+.env
+.env.*
+!.env.example
+
+# Scan reports generated at runtime (e.g., DAST/ZAP)
+zap-report.*
+
+
+# macOS
+.DS_Store
